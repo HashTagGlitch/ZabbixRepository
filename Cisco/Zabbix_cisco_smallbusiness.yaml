@@ -1,0 +1,536 @@
+zabbix_export:
+  version: '7.4'
+  template_groups:
+  - uuid: edffdf40f0304ff289c5e545197b9a3e
+    name: Templates/Network devices
+  templates:
+  - uuid: 3b9fbf3cb0d34e019717559569e32f76
+    template: Template Cisco Small Business SNMP - Centreon FULL
+    name: Template Cisco Small Business SNMP - Centreon FULL
+    description: 'Conversion Zabbix 7.4 du plugin Centreon network::cisco::smallbusiness::standard::snmp::plugin.
+
+      Modes Centreon couverts : cpu, environment, interfaces, list-interfaces, spanning-tree, list-spanning-trees, uptime.
+
+      Le fichier plugin.pm Centreon ne contient que les modes et pas les OID internes des modules appelés.
+
+      Ce template utilise IF-MIB, IF-MIB::ifXTable, SNMPv2-MIB, BRIDGE-MIB et une table privée Cisco Small Business candidate
+      .1.3.6.1.4.1.9.6.1.101.53.15.1 observée par snmpwalk.
+
+
+
+      Mise à jour SG350X: température par unité confirmée sur .1.3.6.1.4.1.9.6.1.101.53.15.1.10.x, seuil warning .12.x et
+      seuil critical .13.x.
+
+
+      Version vérifiée avec seuils température configurables par macros Zabbix.
+
+      Les items constructeur .12.x et .13.x sont conservés en lecture seule pour visibilité.
+
+      Les triggers température utilisent désormais les macros:
+
+      - {$SG350X.TEMP.WARN} défaut 95
+
+      - {$SG350X.TEMP.CRIT} défaut 97
+
+      Override possible au niveau hôte ou avec contexte par unité, ex: {$SG350X.TEMP.CRIT:"2"}=90.
+
+      '
+    groups:
+    - name: Templates/Network devices
+    macros:
+    - macro: '{$SNMP_COMMUNITY}'
+      value: public
+      description: Communauté SNMP v2c si utilisée au niveau hôte.
+    - macro: '{$IF.MATCHES}'
+      value: .*
+      description: Regex d'inclusion des interfaces découvertes.
+    - macro: '{$IF.NOT_MATCHES}'
+      value: ^(lo|Loopback|Null|Vlan|StackPort|InLoopBack).*
+      description: Regex d'exclusion des interfaces.
+    - macro: '{$IF.CONTROL}'
+      value: '1'
+      description: 1 = déclenche les alertes interface down si admin up.
+    - macro: '{$IF.ERRORS.WARN}'
+      value: '10'
+      description: Seuil erreurs interface par seconde.
+    - macro: '{$IF.DISCARDS.WARN}'
+      value: '10'
+      description: Seuil discards interface par seconde.
+    - macro: '{$IF.UTIL.WARN}'
+      value: '85'
+      description: Seuil utilisation interface en pourcentage.
+    - macro: '{$CPU.UTIL.WARN}'
+      value: '80'
+      description: Seuil CPU warning.
+    - macro: '{$CPU.UTIL.HIGH}'
+      value: '90'
+      description: Seuil CPU high.
+    - macro: '{$CISCO.SB.CPU.UTIL.OID}'
+      value: 1.3.6.1.4.1.9.6.1.101.1.8.0
+      description: OID CPU candidate. A valider par snmpwalk selon modèle/firmware.
+    - macro: '{$ENV.STATUS.OK}'
+      value: '1'
+      description: Valeur OK candidate pour la table environnement Cisco Small Business. A valider par snmpwalk.
+    - macro: '{$SG350X.TEMP.WARN}'
+      value: '95'
+      description: 'Seuil warning configurable pour température SG350X en °C. Défaut identique au seuil constructeur observé
+        .12.x. Override possible par hôte ou par contexte, ex: {$SG350X.TEMP.WARN:"2"}=85.'
+    - macro: '{$SG350X.TEMP.CRIT}'
+      value: '97'
+      description: 'Seuil critical configurable pour température SG350X en °C. Défaut identique au seuil constructeur observé
+        .13.x. Override possible par hôte ou par contexte, ex: {$SG350X.TEMP.CRIT:"2"}=90.'
+    items:
+    - uuid: 2b0f6a19b8d74b338ddbecc4c9230195
+      name: System description
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.1.0
+      key: system.descr[sysDescr.0]
+      delay: 1h
+      history: 30d
+      value_type: CHAR
+      trends: '0'
+      inventory_link: OS_FULL
+    - uuid: 78dd427b97bd4a9b8a36c55a6972ab8a
+      name: System object ID
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.2.0
+      key: system.objectid[sysObjectID.0]
+      delay: 1h
+      history: 30d
+      value_type: CHAR
+      trends: '0'
+      inventory_link: MODEL
+    - uuid: 4afea6ecb8ea4e88ba34760cd8d70c08
+      name: System uptime
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.3.0
+      key: system.uptime[sysUpTime.0]
+      delay: 5m
+      history: 90d
+      value_type: FLOAT
+      units: s
+      preprocessing:
+      - type: MULTIPLIER
+        parameters:
+        - '0.01'
+      triggers:
+      - uuid: d29c2df0c16b401786fba6385b0d4703
+        expression: last(/Template Cisco Small Business SNMP - Centreon FULL/system.uptime[sysUpTime.0])<10m
+        name: '{HOST.NAME}: Device has been restarted'
+        priority: WARNING
+        manual_close: 'YES'
+    - uuid: 5329c88d6ef34479b690e7d15fc74f31
+      name: System contact
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.4.0
+      key: system.contact[sysContact.0]
+      delay: 1h
+      history: 30d
+      value_type: CHAR
+      trends: '0'
+      inventory_link: CONTACT
+    - uuid: a05e340d5284451480a73153fcf4f587
+      name: System name
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.5.0
+      key: system.name[sysName.0]
+      delay: 1h
+      history: 30d
+      value_type: CHAR
+      trends: '0'
+      inventory_link: NAME
+    - uuid: 1090e9e7ab3140af885c3d0b87fb5957
+      name: System location
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.6.0
+      key: system.location[sysLocation.0]
+      delay: 1h
+      history: 30d
+      value_type: CHAR
+      trends: '0'
+      inventory_link: LOCATION
+    - uuid: ac22342c47ab47d2aa0ef497d4b0f854
+      name: Number of network interfaces
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.2.1.0
+      key: net.if.number[ifNumber.0]
+      delay: 1h
+      history: 30d
+      value_type: UNSIGNED
+    - uuid: c4bf8618e96b42ca9de2beaa53d3d0ed
+      name: CPU utilization
+      type: SNMP_AGENT
+      snmp_oid: '{$CISCO.SB.CPU.UTIL.OID}'
+      key: cisco.sb.cpu.util
+      delay: 1m
+      history: 90d
+      value_type: FLOAT
+      units: '%'
+      description: Equivalent du mode Centreon cpu. OID candidate, à valider sur le modèle exact.
+      triggers:
+      - uuid: e2471533922f4d97bf478fbfe9b12349
+        expression: min(/Template Cisco Small Business SNMP - Centreon FULL/cisco.sb.cpu.util,15m)>{$CPU.UTIL.HIGH}
+        name: '{HOST.NAME}: High CPU utilization'
+        priority: HIGH
+      - uuid: e786fd3fdd59484391e865ce45b03c8f
+        expression: min(/Template Cisco Small Business SNMP - Centreon FULL/cisco.sb.cpu.util,15m)>{$CPU.UTIL.WARN}
+        name: '{HOST.NAME}: CPU utilization warning'
+        priority: WARNING
+        dependencies:
+        - name: '{HOST.NAME}: High CPU utilization'
+          expression: min(/Template Cisco Small Business SNMP - Centreon FULL/cisco.sb.cpu.util,15m)>{$CPU.UTIL.HIGH}
+    discovery_rules:
+    - uuid: 1a7e430154134663974d3c99520d68ff
+      name: Network interfaces discovery
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#IFDESCR},1.3.6.1.2.1.2.2.1.2,{#IFNAME},1.3.6.1.2.1.31.1.1.1.1,{#IFALIAS},1.3.6.1.2.1.31.1.1.1.18,{#IFTYPE},1.3.6.1.2.1.2.2.1.3,{#IFADMINSTATUS},1.3.6.1.2.1.2.2.1.7,{#IFOPERSTATUS},1.3.6.1.2.1.2.2.1.8]
+      key: net.if.discovery
+      delay: 1h
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#IFNAME}'
+          value: '{$IF.MATCHES}'
+          formulaid: A
+        - macro: '{#IFNAME}'
+          value: '{$IF.NOT_MATCHES}'
+          operator: NOT_MATCHES_REGEX
+          formulaid: B
+      item_prototypes:
+      - uuid: 33d5dcb0150e414c97f83e35d8c9b2bb
+        name: 'Interface {#IFNAME}: Description'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.2.{#SNMPINDEX}
+        key: net.if.descr[ifDescr.{#SNMPINDEX}]
+        delay: 1h
+        history: 30d
+        value_type: CHAR
+        trends: '0'
+      - uuid: d440f3f96ce74240ba4504c8b7e62f11
+        name: 'Interface {#IFNAME}: Alias'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.18.{#SNMPINDEX}
+        key: net.if.alias[ifAlias.{#SNMPINDEX}]
+        delay: 5m
+        history: 30d
+        value_type: CHAR
+        trends: '0'
+      - uuid: 8e1c62396d3342f58fcdb2c663147198
+        name: 'Interface {#IFNAME}: Type'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.3.{#SNMPINDEX}
+        key: net.if.type[ifType.{#SNMPINDEX}]
+        delay: 1h
+        history: 30d
+        value_type: UNSIGNED
+      - uuid: 7f8457a6e7a94f0bb040eaf6609345ba
+        name: 'Interface {#IFNAME}: Admin status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.7.{#SNMPINDEX}
+        key: net.if.adminstatus[ifAdminStatus.{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        value_type: UNSIGNED
+        valuemap:
+          name: IF-MIB::ifAdminStatus
+      - uuid: eed168b7f8cc4e0aaac1594ca780125e
+        name: 'Interface {#IFNAME}: Operational status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.8.{#SNMPINDEX}
+        key: net.if.status[ifOperStatus.{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        value_type: UNSIGNED
+        valuemap:
+          name: IF-MIB::ifOperStatus
+      - uuid: 53bcd8bb2b4343ff879d1f4e136e97d8
+        name: 'Interface {#IFNAME}: Speed'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.15.{#SNMPINDEX}
+        key: net.if.speed[ifHighSpeed.{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        value_type: UNSIGNED
+        units: bps
+        preprocessing:
+        - type: MULTIPLIER
+          parameters:
+          - '1000000'
+      - uuid: 5489227825d04f7ab2237f5acba89237
+        name: 'Interface {#IFNAME}: Incoming traffic'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.6.{#SNMPINDEX}
+        key: net.if.in[ifHCInOctets.{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        value_type: UNSIGNED
+        units: bps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters:
+          - ''
+        - type: MULTIPLIER
+          parameters:
+          - '8'
+      - uuid: 774e7d5555e945fda48e78caf6b98c62
+        name: 'Interface {#IFNAME}: Outgoing traffic'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.10.{#SNMPINDEX}
+        key: net.if.out[ifHCOutOctets.{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        value_type: UNSIGNED
+        units: bps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters:
+          - ''
+        - type: MULTIPLIER
+          parameters:
+          - '8'
+      - uuid: 70f83f37d8bb4a42bf6aca4bb49d9505
+        name: 'Interface {#IFNAME}: Inbound errors'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.14.{#SNMPINDEX}
+        key: net.if.in.errors[ifInErrors.{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        value_type: UNSIGNED
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters:
+          - ''
+      - uuid: 329240ec8ac84b4a9806d742aa6c03e5
+        name: 'Interface {#IFNAME}: Outbound errors'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.20.{#SNMPINDEX}
+        key: net.if.out.errors[ifOutErrors.{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        value_type: UNSIGNED
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters:
+          - ''
+      - uuid: 0d58f2fd459944feb2efe6632e234058
+        name: 'Interface {#IFNAME}: Inbound discards'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.13.{#SNMPINDEX}
+        key: net.if.in.discards[ifInDiscards.{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        value_type: UNSIGNED
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters:
+          - ''
+      - uuid: 2b4b261773794ce9850c62693099398d
+        name: 'Interface {#IFNAME}: Outbound discards'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.19.{#SNMPINDEX}
+        key: net.if.out.discards[ifOutDiscards.{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        value_type: UNSIGNED
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters:
+          - ''
+      trigger_prototypes:
+      - uuid: 8ae92fca7ce34c9384f404bb773b2d59
+        expression: '{$IF.CONTROL}=1 and last(/Template Cisco Small Business SNMP - Centreon FULL/net.if.status[ifOperStatus.{#SNMPINDEX}])=2
+          and last(/Template Cisco Small Business SNMP - Centreon FULL/net.if.adminstatus[ifAdminStatus.{#SNMPINDEX}])=1'
+        name: '{HOST.NAME}: Interface {#IFNAME} is down'
+        priority: AVERAGE
+      - uuid: 1d609d235e4342359e7053b255ea75a5
+        expression: avg(/Template Cisco Small Business SNMP - Centreon FULL/net.if.in.errors[ifInErrors.{#SNMPINDEX}],5m)>{$IF.ERRORS.WARN}
+          or avg(/Template Cisco Small Business SNMP - Centreon FULL/net.if.out.errors[ifOutErrors.{#SNMPINDEX}],5m)>{$IF.ERRORS.WARN}
+        name: '{HOST.NAME}: Interface {#IFNAME} has errors'
+        priority: WARNING
+      - uuid: b1096d0f5676471c8f1137e7ef93a788
+        expression: avg(/Template Cisco Small Business SNMP - Centreon FULL/net.if.in.discards[ifInDiscards.{#SNMPINDEX}],5m)>{$IF.DISCARDS.WARN}
+          or avg(/Template Cisco Small Business SNMP - Centreon FULL/net.if.out.discards[ifOutDiscards.{#SNMPINDEX}],5m)>{$IF.DISCARDS.WARN}
+        name: '{HOST.NAME}: Interface {#IFNAME} has discards'
+        priority: WARNING
+      - uuid: c02ae20e3fa34a84a5883192fb0a41ce
+        expression: avg(/Template Cisco Small Business SNMP - Centreon FULL/net.if.in[ifHCInOctets.{#SNMPINDEX}],5m)>last(/Template
+          Cisco Small Business SNMP - Centreon FULL/net.if.speed[ifHighSpeed.{#SNMPINDEX}])*{$IF.UTIL.WARN}/100 or avg(/Template
+          Cisco Small Business SNMP - Centreon FULL/net.if.out[ifHCOutOctets.{#SNMPINDEX}],5m)>last(/Template Cisco Small
+          Business SNMP - Centreon FULL/net.if.speed[ifHighSpeed.{#SNMPINDEX}])*{$IF.UTIL.WARN}/100
+        name: '{HOST.NAME}: Interface {#IFNAME} high bandwidth usage'
+        priority: WARNING
+    - uuid: 7f0f0734e85b4cd681452a4929198f56
+      name: Spanning-tree ports discovery
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#STPPORT},1.3.6.1.2.1.17.2.15.1.1]
+      key: stp.port.discovery
+      delay: 1h
+      description: Equivalent des modes Centreon spanning-tree et list-spanning-trees via BRIDGE-MIB dot1dStpPortTable.
+      item_prototypes:
+      - uuid: a7c1545024de4ba980b5e38e716c8de3
+        name: 'STP port {#STPPORT}: State'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.17.2.15.1.3.{#SNMPINDEX}
+        key: stp.port.state[dot1dStpPortState.{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        value_type: UNSIGNED
+        valuemap:
+          name: BRIDGE-MIB::dot1dStpPortState
+      - uuid: c11f5fe3466c421ab4f07e829c02de78
+        name: 'STP port {#STPPORT}: Enable status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.17.2.15.1.4.{#SNMPINDEX}
+        key: stp.port.enable[dot1dStpPortEnable.{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        value_type: UNSIGNED
+        valuemap:
+          name: BRIDGE-MIB::dot1dStpPortEnable
+      - uuid: dcb204204adb479fa13fc15ec9b3d0ef
+        name: 'STP port {#STPPORT}: Path cost'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.17.2.15.1.5.{#SNMPINDEX}
+        key: stp.port.pathcost[dot1dStpPortPathCost.{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        value_type: UNSIGNED
+      trigger_prototypes:
+      - uuid: ca94bd5309284a10aeae0ff9c2fd8bd4
+        expression: last(/Template Cisco Small Business SNMP - Centreon FULL/stp.port.state[dot1dStpPortState.{#SNMPINDEX}])=6
+        name: '{HOST.NAME}: STP port {#STPPORT} is broken'
+        priority: AVERAGE
+    - uuid: a7661a51b7e842efb7c6332227535067
+      name: Cisco SG350X environment / unit temperature discovery
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#ENVINDEX},1.3.6.1.4.1.9.6.1.101.53.15.1.1]
+      key: cisco.sb.env.discovery
+      delay: 1h
+      description: 'Découverte des unités Cisco SG350X via table privée Cisco Small Business. Température: .10.x, seuil constructeur
+        warning: .12.x, seuil constructeur critical: .13.x. Les alertes utilisent des macros modifiables, les seuils constructeur
+        restent collectés pour contrôle.'
+      item_prototypes:
+      - uuid: 5578353d597445f983e73df25c9291d0
+        name: 'Environment sensor {#SNMPINDEX}: Index'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.9.6.1.101.53.15.1.1.{#SNMPINDEX}
+        key: cisco.sb.env.index[{#SNMPINDEX}]
+        delay: 5m
+        history: 30d
+        value_type: UNSIGNED
+      - uuid: 0cf539c99b80454dba0502852013e1eb
+        name: 'Environment sensor {#SNMPINDEX}: Status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.9.6.1.101.53.15.1.2.{#SNMPINDEX}
+        key: cisco.sb.env.status[{#SNMPINDEX}]
+        delay: 5m
+        history: 90d
+        value_type: UNSIGNED
+        description: Statut environnement Cisco SB candidate. Valeur OK à confirmer avec snmpwalk.
+      - uuid: 67b56a9b0fa84993b0dcbdb51b70da61
+        name: Cisco SG350X Unit {#SNMPINDEX} Temperature
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.9.6.1.101.53.15.1.10.{#SNMPINDEX}
+        key: cisco.sg350x.unit.temperature[{#SNMPINDEX}]
+        delay: 1m
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        units: °C
+        description: 'Température de l’unité SG350X. Exemple validé: Unit 2 = .1.3.6.1.4.1.9.6.1.101.53.15.1.10.2.'
+      - uuid: cbbe1da7527647f2ab2b10efa924a36e
+        name: Cisco SG350X Unit {#SNMPINDEX} Temperature warning threshold
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.9.6.1.101.53.15.1.12.{#SNMPINDEX}
+        key: cisco.sg350x.unit.temperature.warning[{#SNMPINDEX}]
+        delay: 1h
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        units: °C
+        description: 'Seuil constructeur warning de température pour l’unité SG350X. Exemple: 95°C.'
+      - uuid: 73bcbb4a042a40138c33ba9433d196ff
+        name: Cisco SG350X Unit {#SNMPINDEX} Temperature critical threshold
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.9.6.1.101.53.15.1.13.{#SNMPINDEX}
+        key: cisco.sg350x.unit.temperature.critical[{#SNMPINDEX}]
+        delay: 1h
+        history: 90d
+        trends: 365d
+        value_type: UNSIGNED
+        units: °C
+        description: 'Seuil constructeur critical de température pour l’unité SG350X. Exemple: 97°C.'
+      trigger_prototypes:
+      - uuid: b676ce3be80b4f118a5faa85068b36f7
+        expression: last(/Template Cisco Small Business SNMP - Centreon FULL/cisco.sb.env.status[{#SNMPINDEX}])<>{$ENV.STATUS.OK}
+        name: '{HOST.NAME}: Environment sensor {#SNMPINDEX} status is not OK'
+        priority: WARNING
+        manual_close: 'YES'
+      - uuid: 12d44a86c34a422ca0ac8b0c24ca8e0d
+        expression: last(/Template Cisco Small Business SNMP - Centreon FULL/cisco.sg350x.unit.temperature[{#SNMPINDEX}])>={$SG350X.TEMP.CRIT:"{#SNMPINDEX}"}
+        name: '{HOST.NAME}: Cisco SG350X Unit {#SNMPINDEX} temperature CRITICAL'
+        opdata: 'Current: {ITEM.LASTVALUE1} / Configured critical threshold: {$SG350X.TEMP.CRIT:"{#SNMPINDEX}"} °C'
+        priority: HIGH
+        description: La température de l’unité SG350X est supérieure ou égale au seuil critical configuré par macro. Les items
+          constructeur .13.x restent collectés mais ne pilotent plus directement ce trigger.
+      - uuid: 8e4d00232b484f19bf118a8f8597ad9e
+        expression: last(/Template Cisco Small Business SNMP - Centreon FULL/cisco.sg350x.unit.temperature[{#SNMPINDEX}])>={$SG350X.TEMP.WARN:"{#SNMPINDEX}"}
+          and last(/Template Cisco Small Business SNMP - Centreon FULL/cisco.sg350x.unit.temperature[{#SNMPINDEX}])<{$SG350X.TEMP.CRIT:"{#SNMPINDEX}"}
+        name: '{HOST.NAME}: Cisco SG350X Unit {#SNMPINDEX} temperature WARNING'
+        opdata: 'Current: {ITEM.LASTVALUE1} / Configured warning threshold: {$SG350X.TEMP.WARN:"{#SNMPINDEX}"} °C / Configured
+          critical threshold: {$SG350X.TEMP.CRIT:"{#SNMPINDEX}"} °C'
+        priority: WARNING
+        description: La température de l’unité SG350X est supérieure ou égale au seuil warning configuré par macro et inférieure
+          au seuil critical configuré par macro.
+        dependencies:
+        - name: '{HOST.NAME}: Cisco SG350X Unit {#SNMPINDEX} temperature CRITICAL'
+          expression: last(/Template Cisco Small Business SNMP - Centreon FULL/cisco.sg350x.unit.temperature[{#SNMPINDEX}])>={$SG350X.TEMP.CRIT:"{#SNMPINDEX}"}
+    valuemaps:
+    - uuid: 6cc53a2d50a449b59f5f963efec3785f
+      name: IF-MIB::ifOperStatus
+      mappings:
+      - value: '1'
+        newvalue: up
+      - value: '2'
+        newvalue: down
+      - value: '3'
+        newvalue: testing
+      - value: '4'
+        newvalue: unknown
+      - value: '5'
+        newvalue: dormant
+      - value: '6'
+        newvalue: notPresent
+      - value: '7'
+        newvalue: lowerLayerDown
+    - uuid: 599cc28798614db6b96ccbcf5036a4e9
+      name: IF-MIB::ifAdminStatus
+      mappings:
+      - value: '1'
+        newvalue: up
+      - value: '2'
+        newvalue: down
+      - value: '3'
+        newvalue: testing
+    - uuid: 4df9bf45a16d4fb39c68b7cc3a3bccd9
+      name: BRIDGE-MIB::dot1dStpPortState
+      mappings:
+      - value: '1'
+        newvalue: disabled
+      - value: '2'
+        newvalue: blocking
+      - value: '3'
+        newvalue: listening
+      - value: '4'
+        newvalue: learning
+      - value: '5'
+        newvalue: forwarding
+      - value: '6'
+        newvalue: broken
+    - uuid: 8c31f0115b2249259b29a5a8258f26e7
+      name: BRIDGE-MIB::dot1dStpPortEnable
+      mappings:
+      - value: '1'
+        newvalue: enabled
+      - value: '2'
+        newvalue: disabled
