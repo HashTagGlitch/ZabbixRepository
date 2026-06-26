@@ -1,0 +1,308 @@
+zabbix_export:
+  version: '6.0'
+  date: '2026-06-18T00:00:00Z'
+  groups:
+  - uuid: 669706ed91684695bae518cf81b6034e
+    name: Templates
+  templates:
+  - uuid: 3931461f6d3d482b89c5124e7e0bb6db
+    template: Synology Cloud Sync
+    name: Synology Cloud Sync
+    description: Monitor Synology Cloud Sync tasks via DSM Web API. Built for Precision Global and tested against DSM Cloud Sync API SYNO.CloudSync method list_conn. Compatible with recent Zabbix versions using numeric LLD task IDs.
+    groups:
+    - name: Templates
+    items:
+    - uuid: ee7ab601d0014e86b99ec6d343c94181
+      name: 'Cloud Sync: Get status'
+      type: SCRIPT
+      key: syno.rest.CloudSyncScript
+      delay: 1h
+      history: 1d
+      trends: '0'
+      value_type: TEXT
+      params: "syncList=[];\ntry{\n    p=JSON.parse(value);\n    Sid=null;\n\n    urlLogin=\"https://\"+p.host+\":\"+p.port+\"/webapi/auth.cgi?api=\"+p.apiAuth+\"&method=login&version=\"+p.version+\"&account=\"+encodeURIComponent(p.account)+\"&passwd=\"+encodeURIComponent(p.passwd);\n    reqLogin=new HttpRequest();\n    respL=reqLogin.get(urlLogin,null);\n    if(reqLogin.getStatus()==200){\n        respL=JSON.parse(respL);\n        if(respL.success!==true || !respL.data || !respL.data.sid){throw \"1\";}\n        Sid=respL.data.sid;\n    }\n    else throw \"1\";\n\n    urlCloudSync=\"https://\"+p.host+\":\"+p.port+\"/webapi/entry.cgi\";\n    bodyCloudSync=\"api=\"+encodeURIComponent(p.apiCloudSync)+\"&method=list_conn&version=1&is_tray=true&_sid=\"+encodeURIComponent(Sid);\n    reqCS=new HttpRequest();\n    reqCS.addHeader('Content-Type: application/x-www-form-urlencoded');\n    respCS=reqCS.post(urlCloudSync,bodyCloudSync);\n    if(reqCS.getStatus()==200){\n        respCS=JSON.parse(respCS);\n\
+        \        if(respCS.success!==true || !respCS.data){throw \"2\";}\n    }\n    else throw \"2\";\n\n    conns=respCS.data.conn || [];\n    conns.forEach(buildObject);\n\n    function buildObject(t){\n        SyncObject = {\n            \"Name\": t.task_display_name || t.task_name || (\"Task \"+t.id),\n            \"Id\": t.id,\n            \"Status\": t.status,\n            \"Link_Status\": t.link_status,\n            \"Cloud_Status\": t.cloud_status,\n            \"Unfinished_Files\": t.unfinished_files,\n            \"Exceed_Maximum_Files\": t.exceed_maximum_files ? 1 : 0,\n            \"Type\": t.type,\n            \"Type_Id\": t.type_id,\n            \"User_Id\": t.user_id,\n            \"User_Name\": t.user_name,\n            \"Tray_Status\": respCS.data.tray_status,\n            \"Is_Pause\": respCS.data.is_pause ? 1 : 0,\n            \"Total\": respCS.data.total\n        };\n        syncList.push(SyncObject);\n    }\n\n    function logout(){\n        urlLogout='https://'+p.host+':'+p.port+'/webapi/auth.cgi?api='+p.apiAuth+'&method=logout&version='+p.version+'&_sid='+encodeURIComponent(Sid);\n\
+        \        reqL=new HttpRequest();\n        respLogout=reqL.get(encodeURI(urlLogout),null);\n    }\n\n    logout();\n}\ncatch(e){\n    switch (e) {\n    case \"1\":\n    case \"2\":\n        return e;\n    break;\n    default:\n        return \"9\";\n    }\n}\nreturn JSON.stringify(syncList);"
+      description: Returns a JSON array of Cloud Sync connection objects from SYNO.CloudSync list_conn. Error codes 1/2/9 are converted to error by preprocessing.
+      preprocessing:
+      - type: NOT_MATCHES_REGEX
+        parameters:
+        - ^[0-9]$
+        error_handler: CUSTOM_VALUE
+        error_handler_params: error
+      timeout: 50s
+      parameters:
+      - name: account
+        value: '{$SYNO.REST.USER}'
+      - name: apiAuth
+        value: '{$SYNO.REST.API.AUTH}'
+      - name: apiCloudSync
+        value: '{$SYNO.REST.API.CLOUDSYNC}'
+      - name: host
+        value: '{HOST.CONN}'
+      - name: passwd
+        value: '{$SYNO.REST.PASSWORD}'
+      - name: port
+        value: '{$SYNO.REST.API.PORT}'
+      - name: version
+        value: '{$SYNO.REST.API.VERSION}'
+      tags:
+      - tag: Application
+        value: Synology Cloud Sync
+      triggers:
+      - uuid: 831af59d106d4d87939a1c3118df771f
+        expression: last(/Synology Cloud Sync/syno.rest.CloudSyncScript,#1)="error" and last(/Synology Cloud Sync/syno.rest.CloudSyncScript,#2)="error"
+        name: 'Cloud Sync: Get status failed'
+        priority: WARNING
+        description: Cannot retrieve Cloud Sync status for 2 consecutive checks.
+      - uuid: dc6397f390fd4666983e265f42ffd079
+        expression: nodata(/Synology Cloud Sync/syno.rest.CloudSyncScript,2h)=1
+        name: 'Cloud Sync: No data received'
+        priority: WARNING
+        description: No Cloud Sync master item data received for 2 hours.
+    discovery_rules:
+    - uuid: b1962628df5d40b8a576c3c8ea60355a
+      name: Cloud Sync tasks discovery
+      type: SCRIPT
+      key: syno.rest.CloudSyncTasks
+      delay: '{$SYNO.REST.API.CLOUDSYNC.LLD_INT}'
+      params: "syncList=[];\ntry{\n    p=JSON.parse(value);\n    Sid=null;\n\n    urlLogin=\"https://\"+p.host+\":\"+p.port+\"/webapi/auth.cgi?api=\"+p.apiAuth+\"&method=login&version=\"+p.version+\"&account=\"+encodeURIComponent(p.account)+\"&passwd=\"+encodeURIComponent(p.passwd);\n    reqLogin=new HttpRequest();\n    respL=reqLogin.get(urlLogin,null);\n    if(reqLogin.getStatus()==200){\n        respL=JSON.parse(respL);\n        if(respL.success!==true || !respL.data || !respL.data.sid){throw \"1\";}\n        Sid=respL.data.sid;\n    }\n    else throw \"1\";\n\n    urlCloudSync=\"https://\"+p.host+\":\"+p.port+\"/webapi/entry.cgi\";\n    bodyCloudSync=\"api=\"+encodeURIComponent(p.apiCloudSync)+\"&method=list_conn&version=1&is_tray=true&_sid=\"+encodeURIComponent(Sid);\n    reqCS=new HttpRequest();\n    reqCS.addHeader('Content-Type: application/x-www-form-urlencoded');\n    respCS=reqCS.post(urlCloudSync,bodyCloudSync);\n    if(reqCS.getStatus()==200){\n        respCS=JSON.parse(respCS);\n\
+        \        if(respCS.success!==true || !respCS.data){throw \"2\";}\n    }\n    else throw \"2\";\n\n    conns=respCS.data.conn || [];\n    conns.forEach(buildLLD);\n\n    function buildLLD(t){\n        SyncObject = {\n            '{#TASK_NAME}': t.task_display_name || t.task_name || (\"Task \"+t.id),\n            '{#TASK_ID}': t.id,\n            '{#TASK_TYPE}': t.type\n        };\n        syncList.push(SyncObject);\n    }\n\n    function logout(){\n        urlLogout='https://'+p.host+':'+p.port+'/webapi/auth.cgi?api='+p.apiAuth+'&method=logout&version='+p.version+'&_sid='+encodeURIComponent(Sid);\n        reqL=new HttpRequest();\n        respLogout=reqL.get(encodeURI(urlLogout),null);\n    }\n\n    logout();\n}\ncatch(e){\n}\nreturn JSON.stringify(syncList);"
+      description: 'Output macros:
+
+        {#TASK_NAME}
+
+        {#TASK_ID}
+
+        {#TASK_TYPE}'
+      item_prototypes:
+      - uuid: ac595fb802c849aba51cb98b1c84a53a
+        name: Cloud Sync task {#TASK_NAME} status
+        type: DEPENDENT
+        key: syno.rest.CloudSyncStatus[{#TASK_ID}]
+        delay: '0'
+        history: 60d
+        trends: '0'
+        value_type: CHAR
+        description: Cloud Sync task status returned by SYNO.CloudSync list_conn.
+        preprocessing:
+        - type: NOT_MATCHES_REGEX
+          parameters:
+          - ^error$
+          error_handler: DISCARD_VALUE
+        - type: JSONPATH
+          parameters:
+          - $[?(@.Id == {#TASK_ID})].Status.first()
+        master_item:
+          key: syno.rest.CloudSyncScript
+        tags:
+        - tag: Application
+          value: Synology Cloud Sync
+        trigger_prototypes:
+        - uuid: 7ce08fd707204d0bad4e7dd8461d68d5
+          expression: find(/Synology Cloud Sync/syno.rest.CloudSyncStatus[{#TASK_ID}],#1,"regexp","{$SYNO.REST.API.CLOUDSYNC.STATUS_OK}")=0
+          name: Cloud Sync task {#TASK_NAME} status is not OK
+          opdata: '{ITEM.VALUE}'
+          url: https://{HOST.CONN}:{$SYNO.REST.API.PORT}
+          priority: WARNING
+          description: Cloud Sync task status is not in the accepted OK status list.
+      - uuid: 7d8f256a3fe548cc985de5bd2f057f97
+        name: Cloud Sync task {#TASK_NAME} link status
+        type: DEPENDENT
+        key: syno.rest.CloudSyncLinkStatus[{#TASK_ID}]
+        delay: '0'
+        history: 60d
+        trends: '0'
+        value_type: UNSIGNED
+        description: Cloud provider link status. Expected value is 1.
+        preprocessing:
+        - type: NOT_MATCHES_REGEX
+          parameters:
+          - ^error$
+          error_handler: DISCARD_VALUE
+        - type: JSONPATH
+          parameters:
+          - $[?(@.Id == {#TASK_ID})].Link_Status.first()
+        master_item:
+          key: syno.rest.CloudSyncScript
+        tags:
+        - tag: Application
+          value: Synology Cloud Sync
+        trigger_prototypes:
+        - uuid: ad9ab010aff34df983672bd7b4ba4d08
+          expression: last(/Synology Cloud Sync/syno.rest.CloudSyncLinkStatus[{#TASK_ID}])<>1
+          name: Cloud Sync task {#TASK_NAME} cloud link is not OK
+          opdata: '{ITEM.VALUE}'
+          url: https://{HOST.CONN}:{$SYNO.REST.API.PORT}
+          priority: HIGH
+          description: Cloud Sync reports a link_status different from 1.
+      - uuid: 9b4862ea82924c1b98ee98234ac7cee2
+        name: Cloud Sync task {#TASK_NAME} unfinished files
+        type: DEPENDENT
+        key: syno.rest.CloudSyncUnfinishedFiles[{#TASK_ID}]
+        delay: '0'
+        history: 60d
+        trends: 365d
+        value_type: UNSIGNED
+        description: Number of unfinished files reported by Cloud Sync.
+        preprocessing:
+        - type: NOT_MATCHES_REGEX
+          parameters:
+          - ^error$
+          error_handler: DISCARD_VALUE
+        - type: JSONPATH
+          parameters:
+          - $[?(@.Id == {#TASK_ID})].Unfinished_Files.first()
+        master_item:
+          key: syno.rest.CloudSyncScript
+        tags:
+        - tag: Application
+          value: Synology Cloud Sync
+        units: files
+        trigger_prototypes:
+        - uuid: 0b0768dd822249e8a44f86399361ea56
+          expression: min(/Synology Cloud Sync/syno.rest.CloudSyncUnfinishedFiles[{#TASK_ID}],{$SYNO.REST.API.CLOUDSYNC.UNFINISHED.MAX_AGE})>0
+          name: Cloud Sync task {#TASK_NAME} has unfinished files for too long
+          opdata: '{ITEM.VALUE} files'
+          url: https://{HOST.CONN}:{$SYNO.REST.API.PORT}
+          priority: WARNING
+          description: Cloud Sync has had unfinished files for longer than the configured threshold.
+      - uuid: db328cc308bd4427a5c43d99284bc656
+        name: Cloud Sync task {#TASK_NAME} exceed maximum files
+        type: DEPENDENT
+        key: syno.rest.CloudSyncExceedMaximumFiles[{#TASK_ID}]
+        delay: '0'
+        history: 60d
+        trends: 365d
+        value_type: UNSIGNED
+        description: Boolean value converted to 1/0. 1 means Cloud Sync reports exceed_maximum_files=true.
+        preprocessing:
+        - type: NOT_MATCHES_REGEX
+          parameters:
+          - ^error$
+          error_handler: DISCARD_VALUE
+        - type: JSONPATH
+          parameters:
+          - $[?(@.Id == {#TASK_ID})].Exceed_Maximum_Files.first()
+        master_item:
+          key: syno.rest.CloudSyncScript
+        tags:
+        - tag: Application
+          value: Synology Cloud Sync
+        trigger_prototypes:
+        - uuid: 861095ff493349a4abb379ac4d35d767
+          expression: last(/Synology Cloud Sync/syno.rest.CloudSyncExceedMaximumFiles[{#TASK_ID}])=1
+          name: Cloud Sync task {#TASK_NAME} exceeded maximum files limit
+          opdata: '{ITEM.VALUE}'
+          url: https://{HOST.CONN}:{$SYNO.REST.API.PORT}
+          priority: HIGH
+          description: Cloud Sync reports exceed_maximum_files=true.
+      - uuid: 358af872c1f84d21821dcd4d73c48684
+        name: Cloud Sync task {#TASK_NAME} cloud status
+        type: DEPENDENT
+        key: syno.rest.CloudSyncCloudStatus[{#TASK_ID}]
+        delay: '0'
+        history: 60d
+        trends: 365d
+        value_type: UNSIGNED
+        description: Cloud status numeric value returned by Cloud Sync.
+        preprocessing:
+        - type: NOT_MATCHES_REGEX
+          parameters:
+          - ^error$
+          error_handler: DISCARD_VALUE
+        - type: JSONPATH
+          parameters:
+          - $[?(@.Id == {#TASK_ID})].Cloud_Status.first()
+        master_item:
+          key: syno.rest.CloudSyncScript
+        tags:
+        - tag: Application
+          value: Synology Cloud Sync
+      - uuid: 1b697b32224c4fdfbda4f76ca21e6a70
+        name: Cloud Sync task {#TASK_NAME} provider type
+        type: DEPENDENT
+        key: syno.rest.CloudSyncType[{#TASK_ID}]
+        delay: '0'
+        history: 60d
+        trends: '0'
+        value_type: CHAR
+        description: Cloud provider type, for example azure_cloud_storage.
+        preprocessing:
+        - type: NOT_MATCHES_REGEX
+          parameters:
+          - ^error$
+          error_handler: DISCARD_VALUE
+        - type: JSONPATH
+          parameters:
+          - $[?(@.Id == {#TASK_ID})].Type.first()
+        master_item:
+          key: syno.rest.CloudSyncScript
+        tags:
+        - tag: Application
+          value: Synology Cloud Sync
+      - uuid: 38ffadd3c5464c40a4aef29199263631
+        name: Cloud Sync task {#TASK_NAME} tray status
+        type: DEPENDENT
+        key: syno.rest.CloudSyncTrayStatus[{#TASK_ID}]
+        delay: '0'
+        history: 60d
+        trends: '0'
+        value_type: CHAR
+        description: Global Cloud Sync tray status copied into each discovered task object.
+        preprocessing:
+        - type: NOT_MATCHES_REGEX
+          parameters:
+          - ^error$
+          error_handler: DISCARD_VALUE
+        - type: JSONPATH
+          parameters:
+          - $[?(@.Id == {#TASK_ID})].Tray_Status.first()
+        master_item:
+          key: syno.rest.CloudSyncScript
+        tags:
+        - tag: Application
+          value: Synology Cloud Sync
+        trigger_prototypes:
+        - uuid: 007d8ce3f490454ca087c4b3e352a918
+          expression: find(/Synology Cloud Sync/syno.rest.CloudSyncTrayStatus[{#TASK_ID}],#1,"regexp","{$SYNO.REST.API.CLOUDSYNC.STATUS_OK}")=0
+          name: Cloud Sync global tray status is not OK on {#TASK_NAME}
+          opdata: '{ITEM.VALUE}'
+          url: https://{HOST.CONN}:{$SYNO.REST.API.PORT}
+          priority: WARNING
+          description: Global Cloud Sync tray_status is not in the accepted OK status list.
+      parameters:
+      - name: account
+        value: '{$SYNO.REST.USER}'
+      - name: apiAuth
+        value: '{$SYNO.REST.API.AUTH}'
+      - name: apiCloudSync
+        value: '{$SYNO.REST.API.CLOUDSYNC}'
+      - name: host
+        value: '{HOST.CONN}'
+      - name: passwd
+        value: '{$SYNO.REST.PASSWORD}'
+      - name: port
+        value: '{$SYNO.REST.API.PORT}'
+      - name: version
+        value: '{$SYNO.REST.API.VERSION}'
+    macros:
+    - macro: '{$SYNO.REST.API.AUTH}'
+      value: SYNO.API.Auth
+    - macro: '{$SYNO.REST.API.CLOUDSYNC}'
+      value: SYNO.CloudSync
+    - macro: '{$SYNO.REST.API.CLOUDSYNC.LLD_INT}'
+      value: 15m
+    - macro: '{$SYNO.REST.API.CLOUDSYNC.STATUS_OK}'
+      value: ^(uptodate|syncing|checking|connecting)$
+    - macro: '{$SYNO.REST.API.CLOUDSYNC.UNFINISHED.MAX_AGE}'
+      value: 24h
+    - macro: '{$SYNO.REST.API.PORT}'
+      value: '5001'
+    - macro: '{$SYNO.REST.API.VERSION}'
+      value: '7'
+    - macro: '{$SYNO.REST.USER}'
+      value: ChangeMe
+    - macro: '{$SYNO.REST.PASSWORD}'
+      value: ChangeMe
+      type: SECRET_TEXT
