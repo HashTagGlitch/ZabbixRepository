@@ -25,7 +25,7 @@ HPE/
 Lenovo/
 Linux/
 Microsoft/
-NAS/
+Synology/
 Network/
 VMware/
 ...
